@@ -111,15 +111,10 @@
 
         .finish-text {
             font-size: 48px;
-            color: var(--fc-red);
-            animation: blink 0.5s infinite alternate;
-            text-shadow: 3px 3px var(--fc-yellow);
+            color: var(--fc-blue); /* FINISHの色をfc-blueに変更 */
             margin-bottom: 20px;
-        }
-
-        @keyframes blink {
-            0% { opacity: 1; }
-            100% { opacity: 0; }
+            text-shadow: none; /* 文字の影を無しに変更 */
+            /* animationを削除（点滅を無しに変更） */
         }
 
         .score-result {
@@ -228,7 +223,7 @@
         <!-- 2. フィニッシュ画面 / スコア入力 -->
         <div id="finish-screen" class="overlay hidden">
             <div class="finish-text">FINISH！</div>
-            <div class="score-result">YOUR SCORE:<br><span id="result-score" style="color:var(--fc-yellow); font-size:36px;">0</span></div>
+            <div class="score-result">YOUR SCORE:<br><span id="result-score" style="color:var(--fc-sky); font-size:36px;">0</span></div> <!-- SCOREの色をfc-skyに変更 -->
             <input type="text" id="player-name" placeholder="YOUR NAME" maxlength="8">
             <button id="submit-btn" class="fc-btn">REGISTRATION</button>
         </div>
