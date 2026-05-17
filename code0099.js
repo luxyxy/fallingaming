@@ -31,6 +31,10 @@ let gameState = "START"; // START, PLAYING, FINISH, RANKING
 let gameTimer = null;
 let balls = [];
 
+// 【新規追加】ゲームスピード同期用（デルタタイム管理）
+let lastTime = performance.now();
+const TARGET_FPS = 60;
+
 // --- 画像アセットのプリロード ---
 const images = {
     ufo: new Image(),
@@ -114,6 +118,9 @@ function startGame() {
 
     switchScreen("PLAYING");
 
+    // 開始時の時間をリセット
+    lastTime = performance.now();
+
     if (gameTimer) clearInterval(gameTimer);
     gameTimer = setInterval(() => {
         timeLeft--;
@@ -144,10 +151,11 @@ function spawnBall() {
     }
 }
 
-function update() {
+// 【修正点】引数に dt (補正係数) を受け取り、すべての移動量に乗算
+function update(dt) {
     if (gameState !== "PLAYING") return;
 
-    ufo.x += ufo.speed * ufo.direction;
+    ufo.x += (ufo.speed * ufo.direction) * dt;
     if (ufo.x <= 0) {
         ufo.x = 0;
         ufo.direction = 1;
@@ -156,8 +164,8 @@ function update() {
         ufo.direction = -1;
     }
 
-    if (player.moveLeft) player.x -= player.speed;
-    if (player.moveRight) player.x += player.speed;
+    if (player.moveLeft) player.x -= player.speed * dt;
+    if (player.moveRight) player.x += player.speed * dt;
 
     if (player.x < 0) player.x = 0;
     if (player.x > V_WIDTH - player.width) player.x = V_WIDTH - player.width;
@@ -165,7 +173,7 @@ function update() {
     spawnBall();
     for (let i = balls.length - 1; i >= 0; i--) {
         let b = balls[i];
-        b.y += b.speed;
+        b.y += b.speed * dt;
 
         if (b.y + b.height >= player.y && b.y <= player.y + player.height) {
             if (b.x + b.width >= player.x && b.x <= player.x + player.width) {
@@ -198,21 +206,27 @@ function render() {
     });
 }
 
-function gameLoop() {
-    update();
+// 【修正点】requestAnimationFrameのタイムスタンプを利用してフレーム間の経過時間を計算
+function gameLoop(currentTime) {
+    // ミリ秒単位の経過時間を取得し、基準（60FPS=16.66ms）に対する倍率(dt)を計算
+    const elapsed = currentTime - lastTime;
+    lastTime = currentTime;
+    
+    // ブラウザのバックグラウンド切り替え時などの異常な挙動対策（最大100msに制限）
+    const dt = Math.min(100, elapsed) / (1000 / TARGET_FPS);
+
+    update(dt);
     render();
     requestAnimationFrame(gameLoop);
 }
 
 // --- Firebase スコア送信 & ランキング取得 ---
 async function submitScore() {
-    // 確実にルールを通過させるため、空白の場合は仮の値を割り当て、文字数を厳密にカット
     let name = playerNameInput.value.trim() || "MARIO";
     if (name.length > 8) {
         name = name.substring(0, 8);
     }
 
-    // スコアがマイナスや異常な値にならないよう整数に固定
     const finalScore = Math.max(0, Math.floor(score));
 
     submitBtn.disabled = true;
@@ -222,7 +236,6 @@ async function submitScore() {
         const rankingRef = ref(db, 'scores');
         const newScoreRef = push(rankingRef);
         
-        // 【修正点】ルールのvalidateを確実にパスするため、サーバー側の正確なタイムスタンプ(serverTimestamp())を使用
         await set(newScoreRef, {
             name: name,
             score: finalScore,
@@ -325,4 +338,8 @@ leftZone.addEventListener("touchend", () => player.moveLeft = false);
 rightZone.addEventListener("touchstart", (e) => { e.preventDefault(); player.moveRight = true; });
 rightZone.addEventListener("touchend", () => player.moveRight = false);
 
-requestAnimationFrame(gameLoop);
+// 【修正点】初期ループのキック時に初期タイムスタンプを渡す
+requestAnimationFrame((timestamp) => {
+    lastTime = timestamp;
+    gameLoop(timestamp);
+});
