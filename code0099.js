@@ -91,12 +91,10 @@ const submitBtn = document.getElementById("submit-btn");
 function switchScreen(targetState) {
     gameState = targetState;
     
-    // すべてのオーバーレイを一旦隠す
     startScreen.classList.add("hidden");
     finishScreen.classList.add("hidden");
     rankingScreen.classList.add("hidden");
 
-    // 状態に応じた画面を表示
     if (targetState === "START") startScreen.classList.remove("hidden");
     if (targetState === "FINISH") finishScreen.classList.remove("hidden");
     if (targetState === "RANKING") rankingScreen.classList.remove("hidden");
@@ -149,7 +147,6 @@ function spawnBall() {
 function update() {
     if (gameState !== "PLAYING") return;
 
-    // UFOの高速移動
     ufo.x += ufo.speed * ufo.direction;
     if (ufo.x <= 0) {
         ufo.x = 0;
@@ -159,20 +156,17 @@ function update() {
         ufo.direction = -1;
     }
 
-    // プレイヤー移動
     if (player.moveLeft) player.x -= player.speed;
     if (player.moveRight) player.x += player.speed;
 
     if (player.x < 0) player.x = 0;
     if (player.x > V_WIDTH - player.width) player.x = V_WIDTH - player.width;
 
-    // ボール処理
     spawnBall();
     for (let i = balls.length - 1; i >= 0; i--) {
         let b = balls[i];
         b.y += b.speed;
 
-        // キャッチ判定
         if (b.y + b.height >= player.y && b.y <= player.y + player.height) {
             if (b.x + b.width >= player.x && b.x <= player.x + player.width) {
                 score += 100;
@@ -193,15 +187,12 @@ function render() {
 
     if (!imagesLoaded) return;
 
-    // プレイ中のみUFOを描画
     if (gameState === "PLAYING") {
         ctx.drawImage(images.ufo, ufo.x, ufo.y, ufo.width, ufo.height);
     }
 
-    // カゴの描画
     ctx.drawImage(images.basket, player.x, player.y, player.width, player.height);
 
-    // ボールの描画
     balls.forEach(b => {
         ctx.drawImage(images.ball, b.x, b.y, b.width, b.height);
     });
@@ -217,12 +208,10 @@ function gameLoop() {
 async function submitScore() {
     const name = playerNameInput.value.trim() || "MARIO";
 
-    // 2重送信防止のためにボタンを即座に無効化
     submitBtn.disabled = true;
     submitBtn.textContent = "SENDING...";
 
     try {
-        // 1. スコアをFirebaseに送信
         const rankingRef = ref(db, 'scores');
         const newScoreRef = push(rankingRef);
         await set(newScoreRef, {
@@ -231,16 +220,13 @@ async function submitScore() {
             timestamp: Date.now()
         });
 
-        // 2. 入力フォームをクリア
         playerNameInput.value = "";
-
-        // 3. 送信成功後に画面を切り替え、ランキングを描画
         switchScreen("RANKING");
         await loadAndRenderRanking();
 
     } catch (error) {
-        console.error("Firebaseへの送信またはデータ取得に失敗しました:", error);
-        alert("通信エラーが発生しました。データベースの接続やルールを確認してください。");
+        console.error("Firebaseへの送信に失敗しました:", error);
+        alert("送信エラーが発生しました。");
         submitBtn.disabled = false;
         submitBtn.textContent = "REGISTRATION";
     }
@@ -248,29 +234,41 @@ async function submitScore() {
 
 async function loadAndRenderRanking() {
     rankingBoard.innerHTML = "LOADING...";
+    let records = [];
 
     try {
-        // スコアの高い順に最大7件取得するクエリ
-        const scoresRef = query(ref(db, 'scores'), orderByChild('score'), limitToLast(7));
-        const snapshot = await get(scoresRef);
+        // 【修正点】ルール未設定によるエラーを回避するため、まずは基本リファレンスから試みる
+        let snapshot;
+        try {
+            // インデックスが有効な場合の高速クエリ
+            const scoresRef = query(ref(db, 'scores'), orderByChild('score'), limitToLast(20));
+            snapshot = await get(scoresRef);
+        } catch (queryError) {
+            console.warn("クエリ制限エラーのため、全件取得にフォールバックします:", queryError);
+            // インデックスがない場合は全データを取得（開発時・暫定対策用）
+            snapshot = await get(ref(db, 'scores'));
+        }
         
         rankingBoard.innerHTML = "";
-        let records = [];
 
-        snapshot.forEach((childSnapshot) => {
-            records.push(childSnapshot.val());
-        });
+        if (snapshot && snapshot.exists()) {
+            snapshot.forEach((childSnapshot) => {
+                records.push(childSnapshot.val());
+            });
+        }
 
-        // 降順（高得点順）に並び替え
+        // フロントエンド側で確実に降順（高得点順）にソート
         records.sort((a, b) => b.score - a.score);
 
-        if (records.length === 0) {
+        // 上位7件を切り出し
+        const topRecords = records.slice(0, 7);
+
+        if (topRecords.length === 0) {
             rankingBoard.innerHTML = "NO RECORD YET";
             return;
         }
 
-        // ランキングHTMLの組み立て
-        records.forEach((data, index) => {
+        topRecords.forEach((data, index) => {
             const item = document.createElement("div");
             item.className = `ranking-item ${index < 3 ? 'top3' : ''}`;
             item.innerHTML = `
@@ -281,10 +279,9 @@ async function loadAndRenderRanking() {
         });
 
     } catch (error) {
-        console.error("ランキングの読み込みに失敗しました:", error);
+        console.error("ランキングの完全な読み込みに失敗しました:", error);
         rankingBoard.innerHTML = "LOAD ERROR";
     } finally {
-        // 次のプレイのためにボタンの状態を戻しておく
         submitBtn.disabled = false;
         submitBtn.textContent = "REGISTRATION";
     }
@@ -307,7 +304,6 @@ document.getElementById("start-btn").addEventListener("click", startGame);
 submitBtn.addEventListener("click", submitScore);
 document.getElementById("restart-btn").addEventListener("click", backToStart);
 
-// キーボード
 window.addEventListener("keydown", (e) => {
     if (e.key === "ArrowLeft" || e.key === "a") player.moveLeft = true;
     if (e.key === "ArrowRight" || e.key === "d") player.moveRight = true;
@@ -317,7 +313,6 @@ window.addEventListener("keyup", (e) => {
     if (e.key === "ArrowRight" || e.key === "d") player.moveRight = false;
 });
 
-// スマホ用タッチ操作
 const leftZone = document.getElementById("left-zone");
 const rightZone = document.getElementById("right-zone");
 
@@ -326,5 +321,4 @@ leftZone.addEventListener("touchend", () => player.moveLeft = false);
 rightZone.addEventListener("touchstart", (e) => { e.preventDefault(); player.moveRight = true; });
 rightZone.addEventListener("touchend", () => player.moveRight = false);
 
-// ループ起動
 requestAnimationFrame(gameLoop);
