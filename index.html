@@ -104,9 +104,9 @@
 
         h1 {
             font-size: 32px;
-            color: var(--fc-red);
+            color: var(--fc-blue); /* タイトルの色をfc-blueに変更 */
             margin-bottom: 20px;
-            text-shadow: 2px 2px var(--fc-white);
+            text-shadow: none; /* 文字の影を無しに変更 */
         }
 
         .finish-text {
@@ -151,7 +151,7 @@
             font-family: 'DotGothic16', sans-serif;
             font-size: 20px;
             color: var(--fc-white);
-            background-color: var(--fc-red);
+            background-color: var(--fc-blue); /* ボタンの赤色部分をfc-blueに変更 */
             border: 3px solid var(--fc-white);
             padding: 10px 20px;
             cursor: pointer;
@@ -235,7 +235,7 @@
 
         <!-- 3. ランキング表示画面 -->
         <div id="ranking-screen" class="overlay hidden">
-            <h1 style="color:var(--fc-yellow);">TOP PLAYERS</h1>
+            <h1 style="color:var(--fc-yellow); text-shadow: none;">TOP PLAYERS</h1> <!-- TOP PLAYERSも影を無しに変更 -->
             <div id="ranking-board" class="ranking-list">
                 <!-- JavaScriptにより動的に生成 -->
             </div>
