@@ -2,42 +2,525 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>レトロキャッチゲーム</title>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FC STYLE BALL CATCH</title>
+    <!-- Google Fonts からドット絵風フォントを読み込み -->
+    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+    <style>
+        /* ファミコンのカラーパレットを定義 */
+        :root {
+            --fc-black: #000000;
+            --fc-white: #f8f8f8;
+            --fc-red: #a81000;       /* 象徴的な小豆色に近い赤 */
+            --fc-blue: #0038b8;      /* 深い青 */
+            --fc-green: #00a800;     /* 鮮やかな緑 */
+            --fc-yellow: #f8b800;    /* 懐かしい黄色 */
+            --fc-sky: #3cbcfc;       /* 初期作品でよくある空色 */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--fc-black);
+            color: var(--fc-white);
+            font-family: 'DotGothic16', sans-serif;
+            overflow: hidden;
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* ゲーム画面（レスポンシブ・アスペクト比固定） */
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 450px;
+            height: 100%;
+            max-height: 800px;
+            background-color: var(--fc-sky); /* ファミコン風の背景空色 */
+            border: 4px solid var(--fc-white);
+            overflow: hidden;
+        }
+
+        /* UIエリア */
+        #ui-layer {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 20px;
+            z-index: 10;
+            text-shadow: 2px 2px var(--fc-black);
+        }
+
+        #time-display { color: var(--fc-white); }
+        #score-display { color: var(--fc-yellow); }
+
+        /* ゲームキャンバス */
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated; /* ドット感を強調 */
+        }
+
+        /* モーダル・画面切り替え用の共通スタイル */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1 {
+            font-size: 32px;
+            color: var(--fc-red);
+            margin-bottom: 20px;
+            text-shadow: 2px 2px var(--fc-white);
+        }
+
+        .finish-text {
+            font-size: 48px;
+            color: var(--fc-red);
+            animation: blink 0.5s infinite alternate;
+            text-shadow: 3px 3px var(--fc-yellow);
+            margin-bottom: 20px;
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .score-result {
+            font-size: 24px;
+            color: var(--fc-white);
+            margin-bottom: 20px;
+        }
+
+        /* ファミコン風デザインの入力フォーム・ボタン */
+        input[type="text"] {
+            font-family: 'DotGothic16', sans-serif;
+            font-size: 18px;
+            padding: 8px;
+            background-color: var(--fc-black);
+            border: 3px solid var(--fc-white);
+            color: var(--fc-white);
+            text-align: center;
+            outline: none;
+            margin-bottom: 20px;
+            width: 80%;
+            max-width: 250px;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--fc-yellow);
+        }
+
+        .fc-btn {
+            font-family: 'DotGothic16', sans-serif;
+            font-size: 20px;
+            color: var(--fc-white);
+            background-color: var(--fc-red);
+            border: 3px solid var(--fc-white);
+            padding: 10px 20px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0px var(--fc-black);
+            margin: 5px;
+        }
+
+        .fc-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px var(--fc-black);
+        }
+
+        /* ランキング表示 */
+        .ranking-list {
+            width: 100%;
+            max-width: 280px;
+            margin: 15px 0;
+            font-size: 16px;
+            text-align: left;
+        }
+
+        .ranking-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            border-bottom: 2px dashed var(--fc-white);
+            padding-bottom: 2px;
+        }
+
+        .ranking-item.top3 {
+            color: var(--fc-yellow);
+        }
+
+        /* スマホ用簡易コントローラー（画面下部をタップ・ホールドして左右に動かせるエリア） */
+        #touch-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 25%;
+            display: flex;
+            z-index: 5;
+        }
+        .touch-zone {
+            flex: 1;
+            height: 100%;
+        }
+    </style>
+
+    <!-- Firebase SDK の読み込み (v10) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, push, set, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // --- Firebase 設定（ご提示いただいた情報に書き換え済み） ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCNgQe1bNjJbjiZOZiExkTMXOmaYRwkkIk",
+            authDomain: "fallingaming-4fa8b.firebaseapp.com",
+            databaseURL: "https://fallingaming-4fa8b-default-rtdb.asia-southeast1.firebasedatabase.app/",
+            projectId: "fallingaming-4fa8b",
+            storageBucket: "fallingaming-4fa8b.firebasestorage.app",
+            messagingSenderId: "570079611483",
+            appId: "1:570079611483:web:8d43ba9562e8d9f8334d7e"
+        };
+
+        // Firebase 初期化
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // --- ゲーム用グローバル設定・変数 ---
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // 仮想解像度（ファミコンの比率をベースに固定）
+        const V_WIDTH = 240;
+        const V_HEIGHT = 320;
+        canvas.width = V_WIDTH;
+        canvas.height = V_HEIGHT;
+
+        let score = 0;
+        let timeLeft = 15;
+        let gameState = "START"; // START, PLAYING, FINISH, RANKING
+        let gameTimer = null;
+
+        // プレイヤー（カゴ）オブジェクト
+        const player = {
+            width: 40,
+            height: 12,
+            x: V_WIDTH / 2 - 20,
+            y: V_HEIGHT - 30,
+            speed: 5,
+            moveLeft: false,
+            moveRight: false
+        };
+
+        // ボール配列
+        let balls = [];
+        const BALL_COLORS = ['#a81000', '#0038b8', '#00a800', '#f8b800']; // ファミコンパレットの4色
+
+        // --- UI要素 ---
+        const scoreDisplay = document.getElementById("score-display");
+        const timeDisplay = document.getElementById("time-display");
+        const startScreen = document.getElementById("start-screen");
+        const finishScreen = document.getElementById("finish-screen");
+        const rankingScreen = document.getElementById("ranking-screen");
+        const resultScoreText = document.getElementById("result-score");
+        const rankingBoard = document.getElementById("ranking-board");
+
+        // --- イベントリスナー登録 (初期化用) ---
+        window.addEventListener("DOMContentLoaded", () => {
+            document.getElementById("start-btn").addEventListener("click", startGame);
+            document.getElementById("submit-btn").addEventListener("click", submitScore);
+            document.getElementById("restart-btn").addEventListener("click", backToStart);
+
+            // キーボード操作
+            window.addEventListener("keydown", (e) => {
+                if (e.key === "ArrowLeft" || e.key === "a") player.moveLeft = true;
+                if (e.key === "ArrowRight" || e.key === "d") player.moveRight = true;
+            });
+            window.addEventListener("keyup", (e) => {
+                if (e.key === "ArrowLeft" || e.key === "a") player.moveLeft = false;
+                if (e.key === "ArrowRight" || e.key === "d") player.moveRight = false;
+            });
+
+            // スマホ用タッチ操作（画面の左側・右側をホールドで移動）
+            const leftZone = document.getElementById("left-zone");
+            const rightZone = document.getElementById("right-zone");
+
+            leftZone.addEventListener("touchstart", (e) => { e.preventDefault(); player.moveLeft = true; });
+            leftZone.addEventListener("touchend", () => player.moveLeft = false);
+            rightZone.addEventListener("touchstart", (e) => { e.preventDefault(); player.moveRight = true; });
+            rightZone.addEventListener("touchend", () => player.moveRight = false);
+
+            // ループ処理開始
+            requestAnimationFrame(gameLoop);
+        });
+
+        // --- ゲームロジック ---
+        function startGame() {
+            score = 0;
+            timeLeft = 15;
+            balls = [];
+            player.x = V_WIDTH / 2 - player.width / 2;
+            gameState = "PLAYING";
+
+            scoreDisplay.textContent = `SCORE:${score}`;
+            timeDisplay.textContent = `TIME:${timeLeft}`;
+
+            startScreen.classList.add("hidden");
+            finishScreen.classList.add("hidden");
+            rankingScreen.classList.add("hidden");
+
+            // カウントダウンタイマー
+            gameTimer = setInterval(() => {
+                timeLeft--;
+                timeDisplay.textContent = `TIME:${timeLeft}`;
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            clearInterval(gameTimer);
+            gameState = "FINISH";
+            resultScoreText.textContent = score;
+            finishScreen.classList.remove("hidden");
+            player.moveLeft = false;
+            player.moveRight = false;
+        }
+
+        function spawnBall() {
+            if (Math.random() < 0.04) { // ボールの出現頻度
+                balls.push({
+                    x: Math.random() * (V_WIDTH - 12) + 6,
+                    y: -10,
+                    radius: 6,
+                    speed: Math.random() * 2 + 2.5, // 落下速度
+                    color: BALL_COLORS[Math.floor(Math.random() * BALL_COLORS.length)]
+                });
+            }
+        }
+
+        // メインループ
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update() {
+            if (gameState !== "PLAYING") return;
+
+            // プレイヤー移動
+            if (player.moveLeft) player.x -= player.speed;
+            if (player.moveRight) player.x += player.speed;
+
+            // 壁との接触判定
+            if (player.x < 0) player.x = 0;
+            if (player.x > V_WIDTH - player.width) player.x = V_WIDTH - player.width;
+
+            // ボールの移動および判定
+            spawnBall();
+            for (let i = balls.length - 1; i >= 0; i--) {
+                let b = balls[i];
+                b.y += b.speed;
+
+                // キャッチ判定 (カゴの上面の座標範囲に入ったか)
+                if (b.y + b.radius >= player.y && b.y - b.radius <= player.y + player.height) {
+                    if (b.x >= player.x && b.x <= player.x + player.width) {
+                        score += 100;
+                        scoreDisplay.textContent = `SCORE:${score}`;
+                        balls.splice(i, 1);
+                        continue;
+                    }
+                }
+
+                // 画面外への落下判定
+                if (b.y - b.radius > V_HEIGHT) {
+                    balls.splice(i, 1);
+                }
+            }
+        }
+
+        function render() {
+            // キャンバス内をクリア
+            ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
+
+            // カゴの描画 (ファミコン風の矩形デザイン)
+            ctx.fillStyle = '#f8b800'; // メインカラー（黄）
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            ctx.fillStyle = '#a81000'; // 装飾線（赤）
+            ctx.fillRect(player.x, player.y, player.width, 2);
+            ctx.fillRect(player.x, player.y + player.height - 2, player.width, 2);
+
+            // ボールの描画（四角形の組み合わせでドット絵風に表現）
+            balls.forEach(b => {
+                ctx.fillStyle = b.color;
+                ctx.fillRect(b.x - b.radius, b.y - b.radius, b.radius * 2, b.radius * 2);
+                
+                // ドット風のハイライト（白）
+                ctx.fillStyle = '#f8f8f8';
+                ctx.fillRect(b.x - b.radius + 2, b.y - b.radius + 2, 2, 2);
+            });
+        }
+
+        // --- Firebase ランキングデータ処理 ---
+        async function submitScore() {
+            const nameInput = document.getElementById("player-name");
+            const name = nameInput.value.trim() || "MARIO";
+            const submitBtn = document.getElementById("submit-btn");
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = "SENDING...";
+
+            try {
+                // Realtime Databaseの「scores」ノードへ保存
+                const rankingRef = ref(db, 'scores');
+                const newScoreRef = push(rankingRef);
+                await set(newScoreRef, {
+                    name: name,
+                    score: score,
+                    timestamp: Date.now()
+                });
+
+                nameInput.value = ""; // 入力フィールドの初期化
+                await showRanking();
+            } catch (error) {
+                console.error("Firebaseへの送信に失敗しました:", error);
+                alert("送信エラーが発生しました。");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "REGISTRATION";
+            }
+        }
+
+        async function showRanking() {
+            finishScreen.classList.add("hidden");
+            rankingScreen.classList.remove("hidden");
+            gameState = "RANKING";
+            rankingBoard.innerHTML = "LOADING...";
+
+            try {
+                // スコア順にソートして上限7件を取得
+                const scoresRef = query(ref(db, 'scores'), orderByChild('score'), limitToLast(7));
+                const snapshot = await get(scoresRef);
+                
+                rankingBoard.innerHTML = "";
+                let records = [];
+
+                snapshot.forEach((childSnapshot) => {
+                    records.push(childSnapshot.val());
+                });
+
+                // Firebaseは昇順でデータを返却するため、降順（スコアの高い順）にソート
+                records.sort((a, b) => b.score - a.score);
+
+                if (records.length === 0) {
+                    rankingBoard.innerHTML = "NO RECORD YET";
+                    return;
+                }
+
+                records.forEach((data, index) => {
+                    const item = document.createElement("div");
+                    item.className = `ranking-item ${index < 3 ? 'top3' : ''}`;
+                    item.innerHTML = `
+                        <span>${index + 1}.${escapeHTML(data.name)}</span>
+                        <span>${data.score}</span>
+                    `;
+                    rankingBoard.appendChild(item);
+                });
+
+            } catch (error) {
+                console.error("ランキングデータの取得に失敗しました:", error);
+                rankingBoard.innerHTML = "LOAD ERROR";
+            }
+        }
+
+        function backToStart() {
+            rankingScreen.classList.add("hidden");
+            startScreen.classList.remove("hidden");
+            gameState = "START";
+        }
+
+        // サニタイズ処理（XSS対策）
+        function escapeHTML(str) {
+            return str.replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#039;');
+        }
+    </script>
 </head>
-<body id="gameContainer">
+<body>
 
-    <!-- スコア表示ボード (Canvasの外) -->
-    <div id="scoreDisplay">SCORE: 0</div>
-    <canvas id="gameCanvas"></canvas>
+    <div id="game-container">
+        <!-- 常時表示UIレイヤー -->
+        <div id="ui-layer">
+            <div id="time-display">TIME:15</div>
+            <div id="score-display">SCORE:0</div>
+        </div>
 
-    <!-- メッセージオーバーレイ (スタート/フィニッシュ用。共通のIDを使うことで切り替えを容易にしています) -->
-    <div id="messageOverlay" class="hidden">
-        <h1 id="overlayTitle">キャッチボールゲーム</h1>
-        <p id="overlaySubText" style="margin-bottom: 30px;">ボールをキャッチしてスコアを獲得せよ！</p>
-        <button id="startButton">START GAME!</button>
+        <!-- メイン描画キャンバス -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- スマホ用不可視タッチ操作ゾーン -->
+        <div id="touch-controls">
+            <div id="left-zone" class="touch-zone"></div>
+            <div id="right-zone" class="touch-zone"></div>
+        </div>
+
+        <!-- 1. スタート画面 -->
+        <div id="start-screen" class="overlay">
+            <h1>CATCH BALL</h1>
+            <button id="start-btn" class="fc-btn">START GAME</button>
+        </div>
+
+        <!-- 2. フィニッシュ画面 / スコア入力 -->
+        <div id="finish-screen" class="overlay hidden">
+            <div class="finish-text">FINISH！</div>
+            <div class="score-result">YOUR SCORE:<br><span id="result-score" style="color:var(--fc-yellow); font-size:36px;">0</span></div>
+            <input type="text" id="player-name" placeholder="YOUR NAME" maxlength="8">
+            <button id="submit-btn" class="fc-btn">REGISTRATION</button>
+        </div>
+
+        <!-- 3. ランキング表示画面 -->
+        <div id="ranking-screen" class="overlay hidden">
+            <h1 style="color:var(--fc-yellow);">TOP PLAYERS</h1>
+            <div id="ranking-board" class="ranking-list">
+                <!-- JavaScriptにより動的に生成 -->
+            </div>
+            <button id="restart-btn" class="fc-btn">TITLE SCREEN</button>
+        </div>
     </div>
-
-    <!-- ランキングフォーム (隠し状態) -->
-    <div id="rankingForm" class="hidden">
-        <h2>🏅 ランキングに記録 🏅</h2>
-        <p id="finalScoreText"></p>
-        <input type="text" id="playerNameInput" placeholder="あなたの名前を入力...">
-        <button id="submitScoreButton">登録する</button>
-        <div id="rankingMessage"></div>
-    </div>
-
-    <!-- ============================ -->
-    <!-- ✨ ライブラリとスクリプトの読み込み順序が重要です！ -->
-    <!-- 🚨 type="module" を指定することで、ES Modulesとして正しく動作します。-->
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
-
-    <!-- 独自のモジュールファイルを読み込む -->
-    <script type="module" src="./firebase-config.js"></script>
-    <script type="module" src="./game.js"></script>
 
 </body>
 </html>
