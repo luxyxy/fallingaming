@@ -1,28 +1,28 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ファミコン風ボールキャッチゲーム</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Falling Game</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      border: 1px solid #fff;
+    }
+  </style>
 </head>
 <body>
-  <div id="game-container">
-    <div id="score">スコア: 0</div>
-    <div id="timer">タイマー: 15</div>
-    <div id="game-area">
-      <div id="catcher">カゴ</div>
-      <div id="ball-container"></div>
-    </div>
-    <div id="finish-screen" style="display:none; text-align:center; font-size:3rem; color:white; background:black; padding:20px; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);">FINISH!</div>
-    <div id="ranking-form" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:black; padding:20px; border-radius:10px; text-align:center; color:white;">
-      <h2>ランキングに登録</h2>
-      <input type="text" id="player-name" placeholder="あなたの名前" required>
-      <button id="submit-rank">登録</button>
-    </div>
-  </div>
-
-  <script src="script.js"></script>
+  <canvas id="gameCanvas"></canvas>
   <script src="firebase-config.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>
