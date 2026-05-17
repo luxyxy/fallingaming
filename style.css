@@ -1,0 +1,110 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #000;
+  font-family: "Courier New", monospace;
+  overflow: hidden;
+}
+
+#game-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+#score, #timer {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: #fff;
+  font-size: 1.2rem;
+  z-index: 10;
+}
+
+#game-area {
+  width: 90%;
+  height: 80%;
+  position: relative;
+  background-color: #000;
+  border: 1px solid #00ff00;
+  overflow: hidden;
+}
+
+#catcher {
+  position: absolute;
+  bottom: 10%;
+  width: 30%;
+  height: 5%;
+  background-color: #ff0000;
+  border: 1px solid #00ff00;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#catcher:hover {
+  background-color: #ff0000;
+  transform: scale(1.05);
+}
+
+#ball-container {
+  position: absolute;
+  width: 10%;
+  height: 10%;
+  background-color: #00ff00;
+  border: 1px solid #000000;
+  border-radius: 50%;
+  transition: all 0.5s ease;
+  pointer-events: none;
+}
+
+#finish-screen, #ranking-form {
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.8);
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 2rem;
+  color: white;
+}
+
+#ranking-form input {
+  width: 70%;
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 5px;
+  border: 2px solid #00ff00;
+}
+
+#ranking-form button {
+  margin-top: 10px;
+  padding: 10px 20px;
+  background-color: #ff0000;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+#ranking-form button:hover {
+  background-color: #ff0000;
+  transform: scale(1.05);
+}
+
+/* ファミコン風の色 */
+/* カゴ：赤（ファミコンの赤） */
+/* ボール：緑（ファミコンの緑） */
+/* 背景：黒 */
+/* テキスト：白 */
+/* ボード：緑の縁 */
