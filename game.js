@@ -1,5 +1,5 @@
 // game.js - ゲームの中核ロジック
-import { db } from './firebase-config.js'; // Firebaseインスタンスをインポート
+import { db } from './firebase-config.js'; 
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -7,65 +7,65 @@ const ctx = canvas.getContext('2d');
 // DOM要素の取得
 const scoreDisplayElement = document.getElementById('scoreDisplay');
 const startButton = document.getElementById('startButton');
-const gameOverScreen = document.getElementById('gameOverScreen');
+const messageOverlay = document.getElementById('messageOverlay'); // スタート画面用
+const gameOverScreen = document.getElementById('gameOverScreen');  // ゲームオーバー画面（IDを明示）
 const finalScoreText = document.getElementById('finalScoreText');
-const showRankingFormButton = document.getElementById('showRankingFormButton');
 const rankingForm = document.getElementById('rankingForm');
 const playerNameInput = document.getElementById('playerNameInput');
 const submitScoreButton = document.getElementById('submitScoreButton');
+const overlayTitle = document.querySelector('#messageOverlay h1'); 
 
 // ゲーム状態管理変数
 let score = 0;
 let timeElapsed = 0;
 let isGameRunning = false;
 
-// 定数定義 (ファミコン風の色)
+
+// --- 定数とスタイル定義 ---
 const FAMICOM_COLORS = {
-    BG: '#1a1a2e', // フィールド背景
-    BORDER: '#333', // 本体枠線
-    BALL: '#ffeb3b', // ボールは黄色に調整
-    CATCH: '#4caf50', // キャッチ成功時 (緑)
-    MISS: '#f44336',  // 落下の警告色 (赤)
+    BALL: '#ffeb3b', 
+    CATCH: '#4caf50', 
+    MISS: '#f44336',  
 };
+
+// ゲームボードのサイズは、CSS/JSで動的に決定されるため、ここではダミーの値を入れておきます。
+const canvasDimensions = { width: 400, height: 570 };
+
 
 // =============================================
 // 📐 オブジェクト初期化・再計算
 // =============================================
 
 function initializeGameObjects() {
-    // サイズ変更に対応するためのリサイズ関数呼び出し
-    resizeCanvas(); 
+    resizeCanvas(); // 初回に必ずサイズを調整する
 }
 
 /**
- * Canvasのサイズを親要素に合わせて調整する (レスポンシブ対応)
+ * Canvasのサイズを親要素に合わせて調整し、ゲームオブジェクトの位置も修正する。
  */
 function resizeCanvas() {
     const containerWidth = document.getElementById('gameContainer').clientWidth;
     canvas.width = Math.min(containerWidth, 400); 
-    // 高さもアスペクト比に基づいて決定（縦長のゲームボード風）
     canvas.height = Math.max(300, canvas.width * 0.75);
 
-    // カゴのサイズを動的に計算し直す
-    basket.width = canvas.width * 0.8;
-    basket.y = canvas.height - 30; // 地面から一定距離上
+    // カゴのサイズ計算（画面幅に依存）
+    basket.width = Math.min(canvas.width * 0.8, 250); 
 }
 
-// ゲームオブジェクト（ボール、カゴ）の状態変数
 const ball = {
     x: canvas.width / 2,
     y: 50,
     radius: 15,
-    dx: 4, // X方向の速度 (初期値)
-    dy: 3,  // Y方向の速度 (初期値)
+    dx: 4, 
+    dy: 3,  
 };
 
 const basket = {
-    x: canvas.width / 2 - this.width / 2,
-    y: canvas.height - 30,
-    width: Math.min(canvas.width * 0.8, 250), // 幅は計算で決定
-    height: 20,
+    // カゴのX座標を常に中心から計算し直す
+    x: canvas.width / 2 - this.width / 2 + ball.radius * 1.5, 
+    y: canvas.height - 30, 
 };
+
 
 // =============================================
 // 🎨 描画関数 (Drawing)
@@ -80,16 +80,18 @@ function drawBall() {
 }
 
 function drawBasket() {
+    // ... (描画ロジックは前回と変更なし) ...
     ctx.beginPath();
-    // ファミコン風の立体感を出すための描画
-    ctx.rect(basket.x - 3, basket.y - 3, basket.width + 6, basket.height + 6);
-    ctx.strokeStyle = '#a0522d'; // 茶色い縁取り
+    const effectiveX = basket.x - 3;
+    const effectiveY = basket.y - 3;
+    const effectiveWidth = basket.width + 6;
+    const effectiveHeight = basket.height + 6;
+
+    ctx.strokeStyle = '#a0522d'; 
     ctx.lineWidth = 4;
-    ctx.strokeRect(basket.x - 1, basket.y - 1, basket.width + 2, basket.height + 2);
-    
-    // 本体を描画
+    ctx.strokeRect(effectiveX, effectiveY, effectiveWidth, effectiveHeight);
     ctx.fillStyle = 'var(--basket-color)';
-    ctx.fillRect(basket.x, basket.y, basket.width, basket.height);
+    ctx.fillRect(effectiveX, effectiveY, effectiveWidth, effectiveHeight);
     ctx.closePath();
 }
 
@@ -97,15 +99,13 @@ function drawTimer() {
     const remainingTime = Math.max(0, 15 - timeElapsed);
     let timerText;
     if (remainingTime > 0) {
-        // 残り時間を2桁表示
         timerText = `TIME: ${String(Math.floor(remainingTime)).padStart(2, '0')}`;
-    } else if (!isGameRunning) {
-         return; // ゲームが動いていなければ描画しない
+    } else if (!isGameRunning && timeElapsed >= 15) {
+         return;
     }
 
     ctx.font = "bold 24px monospace";
-    // 残り時間が少ない時は警告色（赤）を使う
-    const color = remainingTime <= 5 ? '#ff4d4d' : '#90ee90'; 
+    const color = remainingTime <= 3 ? '#ff4d4d' : '#90ee90'; 
     ctx.fillStyle = color;
     ctx.fillText(timerText, canvas.width - 180, 30);
 }
@@ -123,6 +123,8 @@ function updateScoreDisplay() {
  * ボールの移動と衝突判定を行うメイン関数
  */
 function updateBall() {
+    if (!isGameRunning) return; // ゲームが動いていなければ何もしない
+
     // 位置を更新
     ball.x += ball.dx;
     ball.y += ball.dy;
@@ -132,48 +134,40 @@ function updateBall() {
         ball.dx *= -1; // 方向転換
     }
 
-    // 2. 上端からの落下防止（常に下向きを維持）
+    // 2. 上端からの落下防止
     if (ball.y <= ball.radius * 2) {
         ball.dy = Math.abs(ball.dy); 
-    } 
-    
-    // 3. 地面到達判定
-    const hitGround = ball.y + ball.radius >= canvas.height;
+    } else if (!isGameRunning) {
+         ball.dy = 0; // ゲーム停止中はY軸の動きを止める
+    }
 
-    if (hitGround && !isGameRunning) return; // ゲームが止まっている場合は何もしない
-
-    // 4. キャッチ判定（キャッチエリアはカゴの少し上）
+    // 3. キャッチ判定 (キャッチエリアはカゴの上下の範囲に絞る)
     const catchAreaYMin = basket.y - ball.radius * 0.5;
     const catchAreaYMax = basket.y + ball.radius * 0.5;
 
-    if (ball.y > catchAreaYMin && ball.y < catchAreaYMax) { // Y軸がキャッチエリア内か？
+    if (ball.y >= catchAreaYMin && ball.y <= catchAreaYMax) { // Y軸がキャッチエリア内か？
         // X軸もカゴの範囲内か？
-        if (ball.x + ball.radius >= basket.x && ball.x - ball.radius <= basket.x + basket.width) {
+        if (ball.x + ball.radius >= basket.x - 3 && ball.x - ball.radius <= basket.x + basket.width + 3) {
             score += 10;
             updateScoreDisplay();
-        } else if (hitGround) {
-             // キャッチエリアを通り過ぎたが、地面に当たった場合（Miss）
-             // scoreは増えないが、大きなフィードバックが必要ならここに追加。
         }
     }
 
-
-    // 5. 地面への落下処理
-    if (ball.y + ball.radius > canvas.height) {
-         clearInterval(gameInterval);
+    // 4. 地面への落下処理 (ゲームオーバー判定の最終トリガー)
+    if (ball.y + ball.radius > canvas.height && isGameRunning) {
+         clearInterval(gameInterval); 
          isGameRunning = false;
          showGameOverScreen();
     }
 }
 
 /**
- * ボールを初期位置にリセットする（ミスしたとき）
+ * ボールを初期位置にリセットする（次のボールの準備）
  */
 function resetBallPosition() {
-    ball.y = 50; // 初期Y座標に戻す
-    // ランダムな水平スタート位置を設定し、次のボールの動きに変化をつける
+    ball.y = 50;
     ball.x = Math.random() * (canvas.width - ball.radius * 2) + ball.radius;
-    // ランダムな速度設定 (左右どちらから落ちてくるかランダム)
+    // 次の落下速度をランダムに設定 (-5〜5)
     ball.dx = (Math.random() > 0.5 ? 1 : -1) * (3 + Math.random() * 2); 
     ball.dy = 3; 
 }
@@ -187,47 +181,41 @@ function resetBallPosition() {
  * メインゲームループ（アニメーション）
  */
 function gameLoop() {
-    if (!isGameRunning) return;
+    if (!isGameRunning) return; // ゲームが動いていなければ、描画はしない
 
-    // 1. キャンバスクリア (前のフレームを消去)
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 2. 更新処理
+    // 1. 更新処理
     updateBall(); 
     
-    // 3. 描画処理
+    // 2. 描画処理
     drawBall();
-    drawBasket(); // カゴは常に描画する
-    drawTimer();
-
-    // 4. ゲームオーバー判定（時間経過による終了）
-    if (timeElapsed >= 15) {
-        clearInterval(gameInterval);
-        isGameRunning = false;
-        showGameOverScreen();
-    }
-
+    drawBasket();
+    drawTimer(); 
+    
     requestAnimationFrame(gameLoop);
 }
 
 /**
- * ゲームの開始処理
+ * ゲームの開始準備と実行（ここが最も重要）
  */
-async function startGame() {
-    // UIの表示制御: スタート画面を消し、ゲームボードを表示
-    document.getElementById('messageOverlay').classList.add('hidden'); 
-    gameOverScreen.classList.remove('hidden'); // ゲームオーバー画面を初期メッセージとして使う
-    rankingForm.classList.add('hidden');
+function startGame() {
+    if (isGameRunning) return; // 二重起動防止
 
-    // 初期化とリセット
+    // UIの状態遷移：スタート画面 -> ゲームボード
+    document.getElementById('messageOverlay').classList.add('hidden'); 
+    rankingForm.classList.add('hidden');
+    gameOverScreen.classList.remove('hidden'); // ゲームオーバー画面を初期メッセージとして使う
+
     score = 0;
     timeElapsed = 0;
     isGameRunning = true;
-    resetBallPosition();
+    resetBallPosition(); // ボールを最初から配置し直す
 
     updateScoreDisplay();
-    
-    // タイマーを毎秒更新するインターバルを設定 (時間経過の管理)
+    console.log("--- [GAME STARTED] ---");
+
+    // タイマーインターバル設定 (毎秒時間経過の管理)
     gameInterval = setInterval(() => {
         if (isGameRunning) {
             timeElapsed++;
@@ -239,18 +227,17 @@ async function startGame() {
     requestAnimationFrame(gameLoop);
 }
 
+
 /**
- * ゲームオーバー時の処理とランキング画面への遷移
+ * ゲームオーバー時の処理とランキング画面の表示
  */
 function showGameOverScreen() {
     isGameRunning = false;
     const finalScore = score;
     finalScoreText.textContent = `最終スコア: ${finalScore}点`;
-    gameOverScreen.classList.remove('hidden');
-    
-    // ランキングフォームの初期化と表示
-    document.getElementById('rankingMessage').textContent = '';
-    playerNameInput.value = ''; // 入力欄をクリア
+
+    // UIの状態遷移：ゲームボード -> ゲームオーバー画面 -> ランキングフォーム
+    gameOverScreen.classList.remove('hidden'); 
     rankingForm.classList.remove('hidden');
 }
 
@@ -267,16 +254,16 @@ async function saveScoreToFirebase() {
     }
 
     try {
-        await setDoc(doc(db, 'rankings', playerName), {
+        await db.collection("rankings").doc(playerName).set({ 
             score: score,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp(), // Firebaseのサーバー時刻を使う
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
             name: playerName
         });
-        document.getElementById('rankingMessage').innerHTML = `<strong style="color: #4caf50;">✨ 成功！${playerName}さんのスコアを記録しました！ ✨</strong>`;
+        document.getElementById('rankingMessage').innerHTML = `<strong style="color: #4caf50;">✅ 成功！${playerName}さんのスコアを記録しました！</strong>`;
 
     } catch (e) {
         console.error("Firebaseへのデータ書き込みエラー:", e);
-        document.getElementById('rankingMessage').innerHTML = `<strong style="color: red;">❌ エラーが発生しました。ネットワーク接続を確認してください。</strong>`;
+        document.getElementById('rankingMessage').innerHTML = `<strong style="color: red;">❌ エラーが発生しました。Firestoreの設定を確認してください。</strong>`;
     }
 }
 
@@ -285,39 +272,44 @@ async function saveScoreToFirebase() {
 // 🎧 イベントリスナー設定 (Input Handling)
 // =============================================
 
-// 1. スタートボタンのイベントハンドラ
 startButton.addEventListener('click', startGame);
 
-// 2. カゴの動き (マウス操作) の処理
-document.getElementById('gameContainer').addEventListener('mousemove', (e) => {
-    if (!isGameRunning) return;
-    const rect = document.getElementById('gameContainer').getBoundingClientRect();
-    // マウス座標からカゴが移動すべきX位置を計算し、更新関数を呼び出す
-    const newMouseX = e.clientX - rect.left; 
-    // カゴの新しい中心X座標を設定する（左端+幅/2）
-    updateBasket(newMouseX - basket.width / 2); 
-});
+// マウスとタッチの両方でカゴを動かすイベント処理の共通化
+const handleMouseMove = (e) => {
+    if (!isGameRunning && !gameOverScreen.classList.contains('hidden')) return; 
 
-// 3. カゴの動き (タッチ操作) の処理 - スマホ対応
+    // クランプ範囲の計算: カゴの中心がどこに来るべきか
+    let targetXCenter;
+
+    // マウス座標を取得
+    const rect = document.getElementById('gameContainer').getBoundingClientRect();
+    targetXCenter = e.clientX - rect.left; 
+    
+    updateBasket(targetXCenter);
+};
+
+document.getElementById('gameContainer').addEventListener('mousemove', handleMouseMove);
 document.getElementById('gameContainer').addEventListener('touchmove', (e) => {
-    if (!isGameRunning || e.touches.length === 0) return;
+    if (!isGameRunning && !gameOverScreen.classList.contains('hidden') || e.touches.length === 0) return;
+
     const rect = document.getElementById('gameContainer').getBoundingClientRect();
     // タッチした指の位置を基準に計算
     const touchX = e.touches[0].clientX - rect.left; 
-    updateBasket(touchX - basket.width / 2);
-});
+    updateBasket(touchX);
+}, { passive: false }); // スクロールイベントとの競合を防ぐためpassive: false
 
-// 4. ランキング登録ボタンのイベントハンドラ
-showRankingFormButton.addEventListener('click', () => {
-    gameOverScreen.classList.add('hidden'); // ゲームオーバー画面を隠す
-    rankingForm.classList.remove('hidden'); // ランキングフォームを表示する
+// ランキング登録ボタンのイベントハンドラ
+document.getElementById('showRankingFormButton').addEventListener('click', () => {
+    gameOverScreen.classList.add('hidden'); 
+    rankingForm.classList.remove('hidden'); 
 });
 
 
 submitScoreButton.addEventListener('click', saveScoreToFirebase);
 
-// 5. 初期起動時の準備
+// 初期起動時のセットアップ (最重要: すべての要素がロードされた後に実行)
 window.addEventListener('load', () => {
     initializeGameObjects();
     updateScoreDisplay();
+    console.log("✅ ゲーム初期化完了。スタートボタンを押してください。");
 });
