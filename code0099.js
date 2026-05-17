@@ -31,6 +31,44 @@ let timeLeft = 15;
 let gameState = "START"; // START, PLAYING, FINISH, RANKING
 let gameTimer = null;
 
+// --- 画像アセットのプリロードと管理 ---
+const images = {
+    ufo: new Image(),
+    ball: new Image(),
+    basket: new Image()
+};
+
+images.ufo.src = 'ufo.png';
+images.ball.src = 'ball.png';
+images.basket.src = 'basket.png';
+
+// 全ての画像が読み込まれたか確認するフラグ
+let imagesLoaded = false;
+let loadedCount = 0;
+const totalImages = Object.keys(images).length;
+
+function checkImagesLoad() {
+    loadedCount++;
+    if (loadedCount === totalImages) {
+        imagesLoaded = true;
+    }
+}
+
+images.ufo.onload = checkImagesLoad;
+images.ball.onload = checkImagesLoad;
+images.basket.onload = checkImagesLoad;
+
+// --- オブジェクト定義 ---
+// UFOオブジェクト（画面上部を高速移動）
+const ufo = {
+    width: 32,
+    height: 16,
+    x: 0,
+    y: 40,         // 画面上部に確実に出現するよう調整
+    speed: 4,      // 高速移動用速度設定
+    direction: 1   // 1: 右, -1: 左
+};
+
 // プレイヤー（カゴ）オブジェクト
 const player = {
     width: 40,
@@ -44,7 +82,6 @@ const player = {
 
 // ボール配列
 let balls = [];
-const BALL_COLORS = ['#a81000', '#0038b8', '#00a800', '#f8b800']; // ファミコンパレットの4色
 
 // --- UI要素 ---
 const scoreDisplay = document.getElementById("score-display");
@@ -61,6 +98,8 @@ function startGame() {
     timeLeft = 15;
     balls = [];
     player.x = V_WIDTH / 2 - player.width / 2;
+    ufo.x = 0;
+    ufo.direction = 1;
     gameState = "PLAYING";
 
     scoreDisplay.textContent = `SCORE:${score}`;
@@ -70,7 +109,6 @@ function startGame() {
     finishScreen.classList.add("hidden");
     rankingScreen.classList.add("hidden");
 
-    // 既存のタイマーがあればクリア
     if (gameTimer) clearInterval(gameTimer);
 
     // カウントダウンタイマー
@@ -93,19 +131,31 @@ function endGame() {
 }
 
 function spawnBall() {
-    if (Math.random() < 0.04) { // ボールの出現頻度
+    // 出現頻度（従来の頻度を維持）
+    if (Math.random() < 0.02) { 
         balls.push({
-            x: Math.random() * (V_WIDTH - 12) + 6,
-            y: -10,
-            radius: 6,
-            speed: Math.random() * 2 + 2.5, // 落下速度
-            color: BALL_COLORS[Math.floor(Math.random() * BALL_COLORS.length)]
+            // ボールは現在のUFOの中心位置から発射される
+            x: ufo.x + (ufo.width / 2) - 6,
+            y: ufo.y + ufo.height,
+            width: 12,
+            height: 12,
+            speed: Math.random() * 3.5 + 1.2 // 落下速度のランダム性
         });
     }
 }
 
 function update() {
     if (gameState !== "PLAYING") return;
+
+    // UFOの高速左右往復移動
+    ufo.x += ufo.speed * ufo.direction;
+    if (ufo.x <= 0) {
+        ufo.x = 0;
+        ufo.direction = 1;
+    } else if (ufo.x >= V_WIDTH - ufo.width) {
+        ufo.x = V_WIDTH - ufo.width;
+        ufo.direction = -1;
+    }
 
     // プレイヤー移動
     if (player.moveLeft) player.x -= player.speed;
@@ -122,8 +172,8 @@ function update() {
         b.y += b.speed;
 
         // キャッチ判定
-        if (b.y + b.radius >= player.y && b.y - b.radius <= player.y + player.height) {
-            if (b.x >= player.x && b.x <= player.x + player.width) {
+        if (b.y + b.height >= player.y && b.y <= player.y + player.height) {
+            if (b.x + b.width >= player.x && b.x <= player.x + player.width) {
                 score += 100;
                 scoreDisplay.textContent = `SCORE:${score}`;
                 balls.splice(i, 1);
@@ -132,7 +182,7 @@ function update() {
         }
 
         // 画面外への落下判定
-        if (b.y - b.radius > V_HEIGHT) {
+        if (b.y > V_HEIGHT) {
             balls.splice(i, 1);
         }
     }
@@ -141,20 +191,20 @@ function update() {
 function render() {
     ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
 
-    // カゴの描画
-    ctx.fillStyle = '#f8b800'; 
-    ctx.fillRect(player.x, player.y, player.width, player.height);
-    ctx.fillStyle = '#a81000'; 
-    ctx.fillRect(player.x, player.y, player.width, 2);
-    ctx.fillRect(player.x, player.y + player.height - 2, player.width, 2);
+    // 画像がまだ読み込まれていない場合は描画をスキップしてバグを防ぐ
+    if (!imagesLoaded) return;
 
-    // ボールの描画
+    // プレイ中のみ画面上部にUFOを描画
+    if (gameState === "PLAYING") {
+        ctx.drawImage(images.ufo, ufo.x, ufo.y, ufo.width, ufo.height);
+    }
+
+    // カゴ（basket.png）の描画
+    ctx.drawImage(images.basket, player.x, player.y, player.width, player.height);
+
+    // ボール（ball.png）の描画
     balls.forEach(b => {
-        ctx.fillStyle = b.color;
-        ctx.fillRect(b.x - b.radius, b.y - b.radius, b.radius * 2, b.radius * 2);
-        
-        ctx.fillStyle = '#f8f8f8';
-        ctx.fillRect(b.x - b.radius + 2, b.y - b.radius + 2, 2, 2);
+        ctx.drawImage(images.ball, b.x, b.y, b.width, b.height);
     });
 }
 
@@ -249,7 +299,6 @@ function escapeHTML(str) {
 }
 
 // --- 初期化とイベントリスナー登録 ---
-// モジュールスクリプト内ではDOM構築後に安全に実行されます
 document.getElementById("start-btn").addEventListener("click", startGame);
 document.getElementById("submit-btn").addEventListener("click", submitScore);
 document.getElementById("restart-btn").addEventListener("click", backToStart);
