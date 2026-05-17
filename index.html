@@ -1,28 +1,41 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Falling Game</title>
-  <style>
-    body {
-      margin: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background-color: #000;
-      color: #fff;
-      font-family: Arial, sans-serif;
-    }
-    canvas {
-      border: 1px solid #fff;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <!-- スマホ対応のレスポンシブデザインを適用 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>キャッチボールゲーム - 🎮</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
-  <script src="firebase-config.js"></script>
-  <script src="game.js"></script>
+    <!-- メインゲームボード -->
+    <div id="gameContainer">
+        <!-- スコア表示エリア (右上に配置) -->
+        <div id="scoreDisplay">Score: 0</div>
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- ゲームオーバー画面・スタート/フィニッシュメッセージ -->
+        <div id="messageOverlay" class="hidden">
+            <h1>ゲームが開始します！</h1>
+            <button id="startButton">START (15秒)</button>
+        </div>
+    </div>
+
+    <!-- スコア入力フォーム (ゲーム終了後表示) -->
+    <div id="rankingForm" class="hidden">
+        <h2>🎉 結果報告 🎉</h2>
+        <p>あなたの最終スコア: <span id="finalScoreDisplay">0</span>点</p>
+        <input type="text" id="playerNameInput" placeholder="プレイヤー名を入力...">
+        <button id="submitScoreButton">ランキングに登録する</button>
+        <div id="rankingMessage"></div>
+    </div>
+
+    <!-- 必須ライブラリの読み込み -->
+    <!-- Firebase SDK は、グローバルスコープで利用するために CDN を使用するのが最も簡単です。 -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+
+    <!-- メインゲームロジック -->
+    <script type="module" src="game.js"></script>
 </body>
 </html>
