@@ -4,8 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FC STYLE BALL CATCH</title>
-    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
     <style>
+        /* 同階層のcode88.ttfをカスタムフォントとして定義 */
+        @font-face {
+            font-family: 'DotGothic16';
+            src: url('code88.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
         /* ファミコンのカラーパレットを定義 */
         :root {
             --fc-black: #000000;
@@ -26,7 +33,7 @@
         }
 
         body {
-            background-color: var(--fc-black);
+            background-color: var(--fc-black); /* 全体の背景色をfc-blackに変更 */
             color: var(--fc-white);
             font-family: 'DotGothic16', sans-serif;
             overflow: hidden;
@@ -45,8 +52,8 @@
             max-width: 450px;
             height: 100%;
             max-height: 800px;
-            background-color: var(--fc-sky); /* ファミコン風の背景空色 */
-            border: 4px solid var(--fc-white);
+            background-color: var(--fc-black); /* ゲーム画面の背景色をfc-blackに変更 */
+            border: 4px solid var(--fc-sky);     /* 外枠線を#3cbcfcに変更 */
             overflow: hidden;
         }
 
@@ -178,7 +185,7 @@
             color: var(--fc-yellow);
         }
 
-        /* スマホ用簡易コントローラー（画面下部をタップ・ホールドして左右に動かせるエリア） */
+        /* スマホ用簡易コントローラー */
         #touch-controls {
             position: absolute;
             bottom: 0;
@@ -197,23 +204,28 @@
 <body>
 
     <div id="game-container">
+        <!-- 常時表示UIレイヤー -->
         <div id="ui-layer">
             <div id="time-display">TIME:15</div>
             <div id="score-display">SCORE:0</div>
         </div>
 
+        <!-- メイン描画キャンバス -->
         <canvas id="gameCanvas"></canvas>
 
+        <!-- スマホ用不可視タッチ操作ゾーン -->
         <div id="touch-controls">
             <div id="left-zone" class="touch-zone"></div>
             <div id="right-zone" class="touch-zone"></div>
         </div>
 
+        <!-- 1. スタート画面 -->
         <div id="start-screen" class="overlay">
             <h1>CATCH BALL</h1>
             <button id="start-btn" class="fc-btn">START GAME</button>
         </div>
 
+        <!-- 2. フィニッシュ画面 / スコア入力 -->
         <div id="finish-screen" class="overlay hidden">
             <div class="finish-text">FINISH！</div>
             <div class="score-result">YOUR SCORE:<br><span id="result-score" style="color:var(--fc-yellow); font-size:36px;">0</span></div>
@@ -221,14 +233,17 @@
             <button id="submit-btn" class="fc-btn">REGISTRATION</button>
         </div>
 
+        <!-- 3. ランキング表示画面 -->
         <div id="ranking-screen" class="overlay hidden">
             <h1 style="color:var(--fc-yellow);">TOP PLAYERS</h1>
             <div id="ranking-board" class="ranking-list">
-                </div>
+                <!-- JavaScriptにより動的に生成 -->
+            </div>
             <button id="restart-btn" class="fc-btn">TITLE SCREEN</button>
         </div>
     </div>
 
+    <!-- 分割した外部JSファイルをモジュールとして読み込み -->
     <script type="module" src="code0099.js"></script>
 </body>
 </html>
