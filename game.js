@@ -1,5 +1,8 @@
 // game.js
+import { initializeApp } from './firebase-app.js';
 import { db } from './firebase-config.js';
+
+const app = initializeApp(firebaseConfig);
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
