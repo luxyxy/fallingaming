@@ -4,52 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>レトロキャッチゲーム</title>
-    <!-- Google Fontsからドット絵風フォントを推奨 -->
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body id="gameContainer">
 
-    <!-- ゲームコンテナ全体 -->
-    <div id="gameContainer">
-        <!-- スコア表示ボードはCanvasの外に配置し、CSSで調整する方が扱いやすい -->
-        <div id="scoreDisplay">SCORE: 0</div>
-        <canvas id="gameCanvas"></canvas>
+    <!-- スコア表示ボード (Canvasの外) -->
+    <div id="scoreDisplay">SCORE: 0</div>
+    <canvas id="gameCanvas"></canvas>
 
-        <!-- スタート時のメッセージオーバーレイ (最初に見える) -->
-        <div id="messageOverlay">
-            <h1>キャッチボールゲーム</h1>
-            <p style="margin-bottom: 30px;">ボールをキャッチしてスコアを獲得せよ！</p>
-            <button id="startButton">START GAME!</button>
-        </div>
-
-        <!-- ゲームオーバー/ランキング画面 -->
-        <div id="messageOverlay" class="hidden" id="gameOverScreen">
-             <h1>GAME OVER!</h1>
-             <h2 id="finalScoreText">最終スコア: 0点</h2>
-             <p style="margin-top: 10px;">この結果をランキングに登録しますか？</p>
-             <button id="showRankingFormButton">続行</button>
-        </div>
-
-        <!-- ランキングフォーム (隠し状態) -->
-        <div id="rankingForm" class="hidden">
-            <h2>🏅 ランキングに記録 🏅</h2>
-            <input type="text" id="playerNameInput" placeholder="あなたの名前を入力...">
-            <button id="submitScoreButton">登録する</button>
-            <p id="rankingMessage"></p>
-        </div>
-
+    <!-- メッセージオーバーレイ (スタート/フィニッシュ用。共通のIDを使うことで切り替えを容易にしています) -->
+    <div id="messageOverlay" class="hidden">
+        <h1 id="overlayTitle">キャッチボールゲーム</h1>
+        <p id="overlaySubText" style="margin-bottom: 30px;">ボールをキャッチしてスコアを獲得せよ！</p>
+        <button id="startButton">START GAME!</button>
     </div>
 
+    <!-- ランキングフォーム (隠し状態) -->
+    <div id="rankingForm" class="hidden">
+        <h2>🏅 ランキングに記録 🏅</h2>
+        <p id="finalScoreText"></p>
+        <input type="text" id="playerNameInput" placeholder="あなたの名前を入力...">
+        <button id="submitScoreButton">登録する</button>
+        <div id="rankingMessage"></div>
+    </div>
 
     <!-- ============================ -->
     <!-- ✨ ライブラリとスクリプトの読み込み順序が重要です！ -->
-    <!-- 1. Firebase SDK (CDN) -->
+    <!-- 🚨 type="module" を指定することで、ES Modulesとして正しく動作します。-->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
-    <!-- 2. Firebase 設定を読み込む (今回はこのファイル内で定義) -->
+
+    <!-- 独自のモジュールファイルを読み込む -->
     <script type="module" src="./firebase-config.js"></script>
-    <!-- 3. メインゲームロジックの実行 -->
     <script type="module" src="./game.js"></script>
 
 </body>
