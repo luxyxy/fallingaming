@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, push, set, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getDatabase, ref, push, set, query, orderByChild, limitToLast, get, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // --- Firebase 初期化設定 ---
 const firebaseConfig = {
@@ -193,7 +193,6 @@ function render() {
 
     ctx.drawImage(images.basket, player.x, player.y, player.width, player.height);
 
-    // ボールを確実にball.pngで描画
     balls.forEach(b => {
         ctx.drawImage(images.ball, b.x, b.y, b.width, b.height);
     });
@@ -207,7 +206,14 @@ function gameLoop() {
 
 // --- Firebase スコア送信 & ランキング取得 ---
 async function submitScore() {
-    const name = playerNameInput.value.trim() || "MARIO";
+    // 確実にルールを通過させるため、空白の場合は仮の値を割り当て、文字数を厳密にカット
+    let name = playerNameInput.value.trim() || "MARIO";
+    if (name.length > 8) {
+        name = name.substring(0, 8);
+    }
+
+    // スコアがマイナスや異常な値にならないよう整数に固定
+    const finalScore = Math.max(0, Math.floor(score));
 
     submitBtn.disabled = true;
     submitBtn.textContent = "SENDING...";
@@ -215,10 +221,12 @@ async function submitScore() {
     try {
         const rankingRef = ref(db, 'scores');
         const newScoreRef = push(rankingRef);
+        
+        // 【修正点】ルールのvalidateを確実にパスするため、サーバー側の正確なタイムスタンプ(serverTimestamp())を使用
         await set(newScoreRef, {
             name: name,
-            score: score,
-            timestamp: Date.now()
+            score: finalScore,
+            timestamp: serverTimestamp()
         });
 
         playerNameInput.value = "";
