@@ -26,7 +26,7 @@ canvas.height = V_HEIGHT;
 
 // --- ゲーム状態管理 ---
 let score = 0;
-let timeLeft = 15;
+let timeLeft = 10; // ゲーム時間を10秒に変更
 let gameState = "START"; // START, PLAYING, FINISH, RANKING
 let gameTimer = null;
 let balls = [];
@@ -103,7 +103,7 @@ function switchScreen(targetState) {
 // --- ゲームロジック ---
 function startGame() {
     score = 0;
-    timeLeft = 15;
+    timeLeft = 10; // ゲーム時間を10秒に変更
     balls = [];
     player.x = V_WIDTH / 2 - player.width / 2;
     ufo.x = 0;
@@ -193,6 +193,7 @@ function render() {
 
     ctx.drawImage(images.basket, player.x, player.y, player.width, player.height);
 
+    // ボールを確実にball.pngで描画
     balls.forEach(b => {
         ctx.drawImage(images.ball, b.x, b.y, b.width, b.height);
     });
@@ -237,15 +238,12 @@ async function loadAndRenderRanking() {
     let records = [];
 
     try {
-        // 【修正点】ルール未設定によるエラーを回避するため、まずは基本リファレンスから試みる
         let snapshot;
         try {
-            // インデックスが有効な場合の高速クエリ
             const scoresRef = query(ref(db, 'scores'), orderByChild('score'), limitToLast(20));
             snapshot = await get(scoresRef);
         } catch (queryError) {
             console.warn("クエリ制限エラーのため、全件取得にフォールバックします:", queryError);
-            // インデックスがない場合は全データを取得（開発時・暫定対策用）
             snapshot = await get(ref(db, 'scores'));
         }
         
@@ -257,10 +255,8 @@ async function loadAndRenderRanking() {
             });
         }
 
-        // フロントエンド側で確実に降順（高得点順）にソート
         records.sort((a, b) => b.score - a.score);
 
-        // 上位7件を切り出し
         const topRecords = records.slice(0, 7);
 
         if (topRecords.length === 0) {
