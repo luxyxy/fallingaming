@@ -129,7 +129,7 @@
             font-size: 18px;
             padding: 8px;
             background-color: var(--fc-black);
-            border: 3px solid var(--fc-white);
+            border: 3px solid var(--fc-white); /* 最初は枠線色をfc-whiteに設定 */
             color: var(--fc-white);
             text-align: center;
             outline: none;
@@ -139,7 +139,7 @@
         }
 
         input[type="text"]:focus {
-            border-color: var(--fc-yellow);
+            border-color: var(--fc-sky); /* 入力できる状態（フォーカス時）の枠線色をfc-skyに変更 */
         }
 
         .fc-btn {
@@ -177,7 +177,7 @@
         }
 
         .ranking-item.top3 {
-            color: var(--fc-yellow);
+            color: var(--fc-sky); /* 上位3プレイヤーの名称・スコアの色をfc-skyに変更 */
         }
 
         /* スマホ用簡易コントローラー */
@@ -230,7 +230,7 @@
 
         <!-- 3. ランキング表示画面 -->
         <div id="ranking-screen" class="overlay hidden">
-            <h1 style="color:var(--fc-yellow); text-shadow: none;">TOP PLAYERS</h1> <!-- TOP PLAYERSも影を無しに変更 -->
+            <h1 style="color:var(--fc-sky); text-shadow: none;">TOP PLAYERS</h1> <!-- TOP PLAYERSの色をfc-sky、影を無しに変更 -->
             <div id="ranking-board" class="ranking-list">
                 <!-- JavaScriptにより動的に生成 -->
             </div>
