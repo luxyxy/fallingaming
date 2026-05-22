@@ -1,11 +1,11 @@
-import { initializeApp } from "[https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js](https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js)";
-import { getDatabase, ref, push, set, query, orderByChild, limitToLast, get, serverTimestamp } from "[https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js](https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js)";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, push, set, query, orderByChild, limitToLast, get, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // --- Firebase 初期化設定 ---
 const firebaseConfig = {
     apiKey: "AIzaSyCNgQe1bNjJbjiZOZiExkTMXOmaYRwkkIk",
     authDomain: "fallingaming-4fa8b.firebaseapp.com",
-    databaseURL: "[https://fallingaming-4fa8b-default-rtdb.asia-southeast1.firebasedatabase.app/](https://fallingaming-4fa8b-default-rtdb.asia-southeast1.firebasedatabase.app/)",
+    databaseURL: "https://fallingaming-4fa8b-default-rtdb.asia-southeast1.firebasedatabase.app/",
     projectId: "fallingaming-4fa8b",
     storageBucket: "fallingaming-4fa8b.firebasestorage.app",
     messagingSenderId: "570079611483",
@@ -31,7 +31,7 @@ let gameState = "START"; // START, PLAYING, FINISH, RANKING
 let gameTimer = null;
 let balls = [];
 
-// --- ゲームスピード同期用（デルタタイム管理） ---
+// 【新規追加】ゲームスピード同期用（デルタタイム管理）
 let lastTime = performance.now();
 const TARGET_FPS = 60;
 
@@ -113,8 +113,8 @@ function startGame() {
     ufo.x = 0;
     ufo.direction = 1;
 
-    scoreDisplay.textContent = SCORE:${score};
-    timeDisplay.textContent = TIME:${timeLeft};
+    scoreDisplay.textContent = `SCORE:${score}`;
+    timeDisplay.textContent = `TIME:${timeLeft}`;
 
     switchScreen("PLAYING");
 
@@ -124,7 +124,7 @@ function startGame() {
     if (gameTimer) clearInterval(gameTimer);
     gameTimer = setInterval(() => {
         timeLeft--;
-        timeDisplay.textContent = TIME:${timeLeft};
+        timeDisplay.textContent = `TIME:${timeLeft}`;
         if (timeLeft <= 0) {
             endGame();
         }
@@ -140,7 +140,7 @@ function endGame() {
 }
 
 function spawnBall() {
-    // 【修正点】玉の出現確率を0.05から0.15（15%）に引き上げ
+    // 確率を15%（0.15）に変更
     if (Math.random() < 0.15) {
         balls.push({
             x: ufo.x + (ufo.width / 2) - 6,
@@ -152,6 +152,7 @@ function spawnBall() {
     }
 }
 
+// 【修正点】引数に dt (補正係数) を受け取り、すべての移動量に乗算
 function update(dt) {
     if (gameState !== "PLAYING") return;
 
@@ -178,7 +179,7 @@ function update(dt) {
         if (b.y + b.height >= player.y && b.y <= player.y + player.height) {
             if (b.x + b.width >= player.x && b.x <= player.x + player.width) {
                 score += 100;
-                scoreDisplay.textContent = SCORE:${score};
+                scoreDisplay.textContent = `SCORE:${score}`;
                 balls.splice(i, 1);
                 continue;
             }
@@ -206,10 +207,13 @@ function render() {
     });
 }
 
+// 【修正点】requestAnimationFrameのタイムスタンプを利用してフレーム間の経過時間を計算
 function gameLoop(currentTime) {
+    // ミリ秒単位の経過時間を取得し、基準（60FPS=16.66ms）に対する倍率(dt)を計算
     const elapsed = currentTime - lastTime;
     lastTime = currentTime;
     
+    // ブラウザのバックグラウンド切り替え時などの異常な挙動対策（最大100msに制限）
     const dt = Math.min(100, elapsed) / (1000 / TARGET_FPS);
 
     update(dt);
@@ -260,4 +264,83 @@ async function loadAndRenderRanking() {
         try {
             const scoresRef = query(ref(db, 'scores'), orderByChild('score'), limitToLast(20));
             snapshot = await get(scoresRef);
-        } catch (
+        } catch (queryError) {
+            console.warn("クエリ制限エラーのため、全件取得にフォールバックします:", queryError);
+            snapshot = await get(ref(db, 'scores'));
+        }
+        
+        rankingBoard.innerHTML = "";
+
+        if (snapshot && snapshot.exists()) {
+            snapshot.forEach((childSnapshot) => {
+                records.push(childSnapshot.val());
+            });
+        }
+
+        records.sort((a, b) => b.score - a.score);
+
+        const topRecords = records.slice(0, 7);
+
+        if (topRecords.length === 0) {
+            rankingBoard.innerHTML = "NO RECORD YET";
+            return;
+        }
+
+        topRecords.forEach((data, index) => {
+            const item = document.createElement("div");
+            item.className = `ranking-item ${index < 3 ? 'top3' : ''}`;
+            item.innerHTML = `
+                <span>${index + 1}.${escapeHTML(data.name)}</span>
+                <span>${data.score}</span>
+            `;
+            rankingBoard.appendChild(item);
+        });
+
+    } catch (error) {
+        console.error("ランキングの完全な読み込みに失敗しました:", error);
+        rankingBoard.innerHTML = "LOAD ERROR";
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "REGISTRATION";
+    }
+}
+
+function backToStart() {
+    switchScreen("START");
+}
+
+function escapeHTML(str) {
+    return str.replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#039;');
+}
+
+// --- イベントリスナー設定 ---
+document.getElementById("start-btn").addEventListener("click", startGame);
+submitBtn.addEventListener("click", submitScore);
+document.getElementById("restart-btn").addEventListener("click", backToStart);
+
+window.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft" || e.key === "a") player.moveLeft = true;
+    if (e.key === "ArrowRight" || e.key === "d") player.moveRight = true;
+});
+window.addEventListener("keyup", (e) => {
+    if (e.key === "ArrowLeft" || e.key === "a") player.moveLeft = false;
+    if (e.key === "ArrowRight" || e.key === "d") player.moveRight = false;
+});
+
+const leftZone = document.getElementById("left-zone");
+const rightZone = document.getElementById("right-zone");
+
+leftZone.addEventListener("touchstart", (e) => { e.preventDefault(); player.moveLeft = true; });
+leftZone.addEventListener("touchend", () => player.moveLeft = false);
+rightZone.addEventListener("touchstart", (e) => { e.preventDefault(); player.moveRight = true; });
+rightZone.addEventListener("touchend", () => player.moveRight = false);
+
+// 【修正点】初期ループのキック時に初期タイムスタンプを渡す
+requestAnimationFrame((timestamp) => {
+    lastTime = timestamp;
+    gameLoop(timestamp);
+});
