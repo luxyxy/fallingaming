@@ -141,7 +141,7 @@ function endGame() {
 
 function spawnBall() {
     // 確率を15%（0.15）に変更
-    if (Math.random() < 0.50) {
+    if (Math.random() < 0.15) {
         balls.push({
             x: ufo.x + (ufo.width / 2) - 6,
             y: ufo.y + ufo.height,
