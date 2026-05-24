@@ -2,208 +2,258 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>UFO Catch Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ベストキャッチャー</title>
     <style>
-        /* ベーススタイル */
-        body {
+        /* 同階層のcode88.ttfをカスタムフォントとして定義 */
+        @font-face {
+            font-family: 'DotGothic16';
+            src: url('code88.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        /* ファミコンのカラーパレットを定義 */
+        :root {
+            --fc-black: #000000;
+            --fc-white: #f8f8f8;
+            --fc-red: #a81000;       /* 象徴的な小豆色に近い赤 */
+            --fc-blue: #0038b8;      /* 深い青 */
+            --fc-green: #00a800;     /* 鮮やかな緑 */
+            --fc-yellow: #f8b800;    /* 懐かしい黄色 */
+            --fc-sky: #3cbcfc;       /* 初期作品でよくある空色 */
+        }
+
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            background-color: #222;
-            font-family: 'Courier New', Courier, monospace;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--fc-black); /* 全体の背景色をfc-blackに変更 */
+            color: var(--fc-white);
+            font-family: 'DotGothic16', sans-serif;
+            overflow: hidden;
+            position: relative;
+            width: 100vw;
+            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            overflow: hidden;
-            color: #fff;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
         }
 
+        /* ゲーム画面（レスポンシブ・アスペクト比固定） */
         #game-container {
             position: relative;
-            width: 240px;
-            height: 320px;
-            background-color: #000;
-            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            width: 100%;
+            max-width: 450px;
+            height: 100%;
+            max-height: 800px;
+            background-color: var(--fc-black); /* ゲーム画面の背景色をfc-blackに変更 */
+            border: 4px solid var(--fc-sky);     /* 外枠線を#3cbcfcに変更 */
+            overflow: hidden;
         }
 
+        /* UIエリア */
+        #ui-layer {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 20px;
+            z-index: 10;
+            text-shadow: 2px 2px var(--fc-black);
+        }
+
+        #time-display { color: var(--fc-sky); } /* TIMEの色をfc-skyに変更 */
+        #score-display { color: var(--fc-sky); } /* 右上のSCOREの色をfc-skyに変更 */
+
+        /* ゲームキャンバス */
         canvas {
             display: block;
             width: 100%;
             height: 100%;
+            image-rendering: pixelated; /* ドット感を強調 */
         }
 
-        /* UIレイヤー共通 */
-        .ui-layer {
+        /* モーダル・画面切り替え用の共通スタイル */
+        .overlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            box-sizing: border-box;
+            background-color: rgba(0, 0, 0, 1.0); /* 不透明度を0.85から1.0に変更（透けないように修正） */
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 10px;
-            background-color: rgba(0, 0, 0, 0.85);
+            z-index: 20;
+            padding: 20px;
             text-align: center;
-            z-index: 10;
         }
 
         .hidden {
             display: none !important;
         }
 
-        /* プレイ中のヘッダーHUD */
-        #hud {
-            position: absolute;
-            top: 5px;
-            left: 0;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 10px;
-            box-sizing: border-box;
-            font-size: 12px;
-            font-weight: bold;
-            z-index: 5;
-            pointer-events: none;
-            text-shadow: 1px 1px 2px #000;
+        h1 {
+            font-size: 32px;
+            color: var(--fc-blue); /* タイトルの色をfc-blueに変更 */
+            margin-bottom: 20px;
+            text-shadow: none; /* 文字の影を無しに変更 */
         }
 
-        /* タッチ操作用ゾーン */
-        #touch-controls {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            z-index: 4;
-        }
-        .touch-zone {
-            width: 50%;
-            height: 100%;
+        .finish-text {
+            font-size: 48px;
+            color: var(--fc-blue); /* FINISHの色をfc-blueに変更 */
+            margin-bottom: 20px;
+            text-shadow: none; /* 文字の影を無しに変更 */
         }
 
-        /* ボタン・入力フォーム */
-        h1 { font-size: 18px; margin-bottom: 20px; color: #0f0; text-shadow: 0 0 5px #0f0; }
-        h2 { font-size: 14px; margin: 5px 0; }
-        p { font-size: 12px; margin: 10px 0; }
-        
-        button {
-            background: #000;
-            color: #0f0;
-            border: 2px solid #0f0;
-            padding: 6px 12px;
-            font-family: inherit;
-            font-size: 12px;
+        .score-result {
+            font-size: 24px;
+            color: var(--fc-white);
+            margin-bottom: 20px;
+        }
+
+        /* ファミコン風デザインの入力フォーム・ボタン */
+        input[type="text"] {
+            font-family: 'DotGothic16', sans-serif;
+            font-size: 18px;
+            padding: 8px;
+            background-color: var(--fc-black);
+            border: 3px solid var(--fc-white); /* 最初は枠線色をfc-whiteに設定 */
+            color: var(--fc-white);
+            text-align: center;
+            outline: none;
+            margin-bottom: 20px;
+            width: 80%;
+            max-width: 250px;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--fc-sky); /* 入力できる状態（フォーカス時）の枠線色をfc-skyに変更 */
+        }
+
+        .fc-btn {
+            font-family: 'DotGothic16', sans-serif;
+            font-size: 20px;
+            color: var(--fc-white);
+            background-color: var(--fc-blue); /* ボタンの赤色部分をfc-blueに変更 */
+            border: 3px solid var(--fc-white);
+            padding: 10px 20px;
             cursor: pointer;
+            box-shadow: 4px 4px 0px var(--fc-black);
             margin: 5px;
-            box-shadow: 0 0 5px rgba(0,255,0,0.5);
         }
-        button:active:not(:disabled) {
-            background: #0f0;
-            color: #000;
+
+        .fc-btn:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px var(--fc-black);
         }
-        button:disabled {
+
+        .fc-btn:disabled {
             color: #555;
             border-color: #555;
+            background-color: #111;
             box-shadow: none;
             cursor: not-allowed;
         }
 
-        input[type="text"] {
-            background: #111;
-            border: 1px solid #0f0;
-            color: #fff;
-            padding: 4px;
-            width: 120px;
-            text-align: center;
-            font-family: inherit;
-            font-size: 12px;
-            margin-bottom: 10px;
-        }
-
-        /* ランキングボード */
-        #ranking-board {
-            width: 90%;
-            margin: 10px 0;
-            font-size: 11px;
+        /* ランキング表示 */
+        .ranking-list {
+            width: 100%;
+            max-width: 280px;
+            margin: 15px 0;
+            font-size: 16px;
             text-align: left;
         }
+
         .ranking-item {
             display: flex;
             justify-content: space-between;
-            margin: 4px 0;
-            border-bottom: 1px dashed #333;
+            margin-bottom: 8px;
+            border-bottom: 2px dashed var(--fc-white);
             padding-bottom: 2px;
         }
-        .top3 {
-            color: #ff0;
-            font-weight: bold;
-            text-shadow: 0 0 3px rgba(255,255,0,0.5);
+
+        .ranking-item.top3 {
+            color: var(--fc-sky); /* 上位3プレイヤーの名称・スコアの色をfc-skyに変更 */
         }
 
-        /* ページネーションコントロール */
+        /* レトロなページネーション用ボタン配置 */
         #ranking-pagination {
             display: flex;
             justify-content: center;
             gap: 10px;
-            margin: 5px 0 10px 0;
+            margin-bottom: 15px;
         }
-        #ranking-pagination button {
-            padding: 3px 8px;
-            font-size: 10px;
+        .fc-btn-s {
+            font-size: 14px;
+            padding: 5px 12px;
+        }
+
+        /* スマホ用簡易コントローラー */
+        #touch-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60%; /* タッチ可能範囲を画面の下から60%（画面半分より上）まで拡大 */
+            display: flex;
+            z-index: 5;
+        }
+        .touch-zone {
+            flex: 1;
+            height: 100%;
         }
     </style>
 </head>
 <body>
 
-<div id="game-container">
-    <div id="hud">
-        <div id="score-display">SCORE:0</div>
-        <div id="time-display">TIME:10</div>
-    </div>
-
-    <canvas id="gameCanvas"></canvas>
-
-    <div id="touch-controls">
-        <div id="left-zone" class="touch-zone"></div>
-        <div id="right-zone" class="touch-zone"></div>
-    </div>
-
-    <div id="start-screen" class="ui-layer">
-        <h1>UFO CATCHER</h1>
-        <p>A/D or Keys to Move</p>
-        <button id="start-btn">START GAME</button>
-    </div>
-
-    <div id="finish-screen" class="ui-layer hidden">
-        <h1>GAME OVER</h1>
-        <h2>YOUR SCORE: <span id="result-score">0</span></h2>
-        <p>ENTER YOUR NAME (MAX 8)</p>
-        <input type="text" id="player-name" placeholder="MARIO" maxlength="8">
-        <button id="submit-btn">REGISTRATION</button>
-    </div>
-
-    <div id="ranking-screen" class="ui-layer hidden">
-        <h1>TOP RANKING</h1>
-        <div id="ranking-board">LOADING...</div>
-        
-        <div id="ranking-pagination">
-            <button id="prev-page-btn" disabled>PREV</button>
-            <button id="next-page-btn" disabled>NEXT</button>
+    <div id="game-container">
+        <div id="ui-layer">
+            <div id="time-display">TIME:10</div>
+            <div id="score-display">SCORE:0</div>
         </div>
 
-        <button id="restart-btn">BACK TO TITLE</button>
-    </div>
-</div>
+        <canvas id="gameCanvas"></canvas>
 
-<script type="module" src="code0099.js"></script>
+        <div id="touch-controls">
+            <div id="left-zone" class="touch-zone"></div>
+            <div id="right-zone" class="touch-zone"></div>
+        </div>
+
+        <div id="start-screen" class="overlay">
+            <h1>ベストキャッチャー</h1>
+            <button id="start-btn" class="fc-btn">START GAME</button>
+        </div>
+
+        <div id="finish-screen" class="overlay hidden">
+            <div class="finish-text">FINISH！</div>
+            <div class="score-result">YOUR SCORE:<br><span id="result-score" style="color:var(--fc-sky); font-size:36px;">0</span></div> <input type="text" id="player-name" placeholder="YOUR NAME" maxlength="8">
+            <button id="submit-btn" class="fc-btn">REGISTRATION</button>
+        </div>
+
+        <div id="ranking-screen" class="overlay hidden">
+            <h1 style="color:var(--fc-sky); text-shadow: none;">TOP PLAYERS</h1> <div id="ranking-board" class="ranking-list">
+                </div>
+
+            <div id="ranking-pagination">
+                <button id="prev-page-btn" class="fc-btn fc-btn-s" disabled>PREV</button>
+                <button id="next-page-btn" class="fc-btn fc-btn-s" disabled>NEXT</button>
+            </div>
+
+            <button id="restart-btn" class="fc-btn">TITLE SCREEN</button>
+        </div>
+    </div>
+
+    <script type="module" src="code0099.js"></script>
 </body>
 </html>
