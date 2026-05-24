@@ -26,24 +26,32 @@ canvas.height = V_HEIGHT;
 
 // --- ゲーム状態管理 ---
 let score = 0;
-let timeLeft = 10; // ゲーム時間を10秒に変更
+let timeLeft = 10; 
 let gameState = "START"; // START, PLAYING, FINISH, RANKING
 let gameTimer = null;
 let balls = [];
 
-// 【新規追加】ゲームスピード同期用（デルタタイム管理）
+// ゲームスピード同期用（デルタタイム管理）
 let lastTime = performance.now();
 const TARGET_FPS = 60;
+
+// ランキングページ管理用変数
+let rankingRecords = [];
+let currentRankingPage = 0; // 0: 1〜7位, 1: 8〜14位
 
 // --- 画像アセットのプリロード ---
 const images = {
     ufo: new Image(),
     ball: new Image(),
+    pinkball: new Image(),
+    bomb: new Image(),
     basket: new Image()
 };
 
 images.ufo.src = 'ufo.png';
 images.ball.src = 'ball.png';
+images.pinkball.src = 'pinkball.png';
+images.bomb.src = 'bomb.png';
 images.basket.src = 'basket.png';
 
 let imagesLoaded = false;
@@ -58,6 +66,8 @@ function onImageLoad() {
 }
 images.ufo.onload = onImageLoad;
 images.ball.onload = onImageLoad;
+images.pinkball.onload = onImageLoad;
+images.bomb.onload = onImageLoad;
 images.basket.onload = onImageLoad;
 
 // --- オブジェクトデータ ---
@@ -91,6 +101,10 @@ const rankingBoard = document.getElementById("ranking-board");
 const playerNameInput = document.getElementById("player-name");
 const submitBtn = document.getElementById("submit-btn");
 
+// ランキングページ切り替えボタンの取得
+const prevPageBtn = document.getElementById("prev-page-btn");
+const nextPageBtn = document.getElementById("next-page-btn");
+
 // --- 画面遷移の制御関数 ---
 function switchScreen(targetState) {
     gameState = targetState;
@@ -107,7 +121,7 @@ function switchScreen(targetState) {
 // --- ゲームロジック ---
 function startGame() {
     score = 0;
-    timeLeft = 10; // ゲーム時間を10秒に変更
+    timeLeft = 10; 
     balls = [];
     player.x = V_WIDTH / 2 - player.width / 2;
     ufo.x = 0;
@@ -118,7 +132,6 @@ function startGame() {
 
     switchScreen("PLAYING");
 
-    // 開始時の時間をリセット
     lastTime = performance.now();
 
     if (gameTimer) clearInterval(gameTimer);
@@ -140,9 +153,34 @@ function endGame() {
 }
 
 function spawnBall() {
-    // 確率を15%（0.15）に変更
-    if (Math.random() < 0.15) {
+    const rand = Math.random();
+    
+    // ピンクのボール：出現確率 5% (0.00 〜 0.05)
+    if (rand < 0.05) {
         balls.push({
+            type: "pink",
+            x: ufo.x + (ufo.width / 2) - 6,
+            y: ufo.y + ufo.height,
+            width: 12,
+            height: 12,
+            speed: Math.random() * 3.5 + 1.2
+        });
+    } 
+    // 爆弾：出現確率 5% (0.05 〜 0.10 の範囲)
+    else if (rand < 0.10) {
+        balls.push({
+            type: "bomb",
+            x: ufo.x + (ufo.width / 2) - 6,
+            y: ufo.y + ufo.height,
+            width: 12,
+            height: 12,
+            speed: Math.random() * 3.5 + 1.2
+        });
+    }
+    // 青いボール：出現確率 15% (0.10 〜 0.25 の範囲)
+    else if (rand < 0.25) {
+        balls.push({
+            type: "blue",
             x: ufo.x + (ufo.width / 2) - 6,
             y: ufo.y + ufo.height,
             width: 12,
@@ -152,7 +190,6 @@ function spawnBall() {
     }
 }
 
-// 【修正点】引数に dt (補正係数) を受け取り、すべての移動量に乗算
 function update(dt) {
     if (gameState !== "PLAYING") return;
 
@@ -178,7 +215,14 @@ function update(dt) {
 
         if (b.y + b.height >= player.y && b.y <= player.y + player.height) {
             if (b.x + b.width >= player.x && b.x <= player.x + player.width) {
-                score += 100;
+                // スコア判定の分岐
+                if (b.type === "pink") {
+                    score += 500;
+                } else if (b.type === "bomb") {
+                    score -= 500;
+                } else {
+                    score += 100;
+                }
                 scoreDisplay.textContent = `SCORE:${score}`;
                 balls.splice(i, 1);
                 continue;
@@ -203,17 +247,18 @@ function render() {
     ctx.drawImage(images.basket, player.x, player.y, player.width, player.height);
 
     balls.forEach(b => {
-        ctx.drawImage(images.ball, b.x, b.y, b.width, b.height);
+        let img = images.ball;
+        if (b.type === "pink") img = images.pinkball;
+        if (b.type === "bomb") img = images.bomb;
+        
+        ctx.drawImage(img, b.x, b.y, b.width, b.height);
     });
 }
 
-// 【修正点】requestAnimationFrameのタイムスタンプを利用してフレーム間の経過時間を計算
 function gameLoop(currentTime) {
-    // ミリ秒単位の経過時間を取得し、基準（60FPS=16.66ms）に対する倍率(dt)を計算
     const elapsed = currentTime - lastTime;
     lastTime = currentTime;
     
-    // ブラウザのバックグラウンド切り替え時などの異常な挙動対策（最大100msに制限）
     const dt = Math.min(100, elapsed) / (1000 / TARGET_FPS);
 
     update(dt);
@@ -245,6 +290,8 @@ async function submitScore() {
 
         playerNameInput.value = "";
         switchScreen("RANKING");
+        
+        currentRankingPage = 0; 
         await loadAndRenderRanking();
 
     } catch (error) {
@@ -257,7 +304,10 @@ async function submitScore() {
 
 async function loadAndRenderRanking() {
     rankingBoard.innerHTML = "LOADING...";
-    let records = [];
+    rankingRecords = []; 
+
+    if (prevPageBtn) prevPageBtn.disabled = true;
+    if (nextPageBtn) nextPageBtn.disabled = true;
 
     try {
         let snapshot;
@@ -265,36 +315,19 @@ async function loadAndRenderRanking() {
             const scoresRef = query(ref(db, 'scores'), orderByChild('score'), limitToLast(20));
             snapshot = await get(scoresRef);
         } catch (queryError) {
-            console.warn("クエリ制限エラーのため、全件取得にフォールバックします:", queryError);
+            console.warn("クエリ制限エラーのためフォールバックします:", queryError);
             snapshot = await get(ref(db, 'scores'));
         }
         
-        rankingBoard.innerHTML = "";
-
         if (snapshot && snapshot.exists()) {
             snapshot.forEach((childSnapshot) => {
-                records.push(childSnapshot.val());
+                rankingRecords.push(childSnapshot.val());
             });
         }
 
-        records.sort((a, b) => b.score - a.score);
+        rankingRecords.sort((a, b) => b.score - a.score);
 
-        const topRecords = records.slice(0, 7);
-
-        if (topRecords.length === 0) {
-            rankingBoard.innerHTML = "NO RECORD YET";
-            return;
-        }
-
-        topRecords.forEach((data, index) => {
-            const item = document.createElement("div");
-            item.className = `ranking-item ${index < 3 ? 'top3' : ''}`;
-            item.innerHTML = `
-                <span>${index + 1}.${escapeHTML(data.name)}</span>
-                <span>${data.score}</span>
-            `;
-            rankingBoard.appendChild(item);
-        });
+        renderRankingPage(); 
 
     } catch (error) {
         console.error("ランキングの完全な読み込みに失敗しました:", error);
@@ -303,6 +336,38 @@ async function loadAndRenderRanking() {
         submitBtn.disabled = false;
         submitBtn.textContent = "REGISTRATION";
     }
+}
+
+// ページの描画関数
+function renderRankingPage() {
+    rankingBoard.innerHTML = "";
+
+    if (rankingRecords.length === 0) {
+        rankingBoard.innerHTML = "NO RECORD YET";
+        if (prevPageBtn) prevPageBtn.disabled = true;
+        if (nextPageBtn) nextPageBtn.disabled = true;
+        return;
+    }
+
+    // 1ページあたり7件表示
+    const startIdx = currentRankingPage * 7;
+    const endIdx = startIdx + 7;
+    const pageRecords = rankingRecords.slice(startIdx, endIdx);
+
+    pageRecords.forEach((data, index) => {
+        const globalIndex = startIdx + index; 
+        const item = document.createElement("div");
+        item.className = `ranking-item ${globalIndex < 3 ? 'top3' : ''}`;
+        item.innerHTML = `
+            <span>${globalIndex + 1}.${escapeHTML(data.name)}</span>
+            <span>${data.score}</span>
+        `;
+        rankingBoard.appendChild(item);
+    });
+
+    // 最大14位までにするためのボタン制御
+    if (prevPageBtn) prevPageBtn.disabled = (currentRankingPage === 0);
+    if (nextPageBtn) nextPageBtn.disabled = (currentRankingPage === 1 || rankingRecords.length <= endIdx);
 }
 
 function backToStart() {
@@ -322,6 +387,24 @@ document.getElementById("start-btn").addEventListener("click", startGame);
 submitBtn.addEventListener("click", submitScore);
 document.getElementById("restart-btn").addEventListener("click", backToStart);
 
+// ランキングページ切り替えイベント
+if (prevPageBtn) {
+    prevPageBtn.addEventListener("click", () => {
+        if (currentRankingPage > 0) {
+            currentRankingPage--;
+            renderRankingPage();
+        }
+    });
+}
+if (nextPageBtn) {
+    nextPageBtn.addEventListener("click", () => {
+        if (currentRankingPage < 1) { 
+            currentRankingPage++;
+            renderRankingPage();
+        }
+    });
+}
+
 window.addEventListener("keydown", (e) => {
     if (e.key === "ArrowLeft" || e.key === "a") player.moveLeft = true;
     if (e.key === "ArrowRight" || e.key === "d") player.moveRight = true;
@@ -339,7 +422,6 @@ leftZone.addEventListener("touchend", () => player.moveLeft = false);
 rightZone.addEventListener("touchstart", (e) => { e.preventDefault(); player.moveRight = true; });
 rightZone.addEventListener("touchend", () => player.moveRight = false);
 
-// 【修正点】初期ループのキック時に初期タイムスタンプを渡す
 requestAnimationFrame((timestamp) => {
     lastTime = timestamp;
     gameLoop(timestamp);
